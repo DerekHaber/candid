@@ -41,9 +41,7 @@
       }
     },
     "owner": "derekhaber04",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/18c8d9e1-0b78-4367-9d7e-8b78b64b3eb5"
     },
@@ -68,7 +66,6 @@
     "ios": {
       "icon": "./assets/icon.png",
       "bundleIdentifier": "com.derekhaber04.candid",
-      "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
