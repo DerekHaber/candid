@@ -45,4 +45,3 @@ yarn-error.*
 /android
 .env
 
-eas.json
