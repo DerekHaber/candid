@@ -23,9 +23,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "your@apple.id",
-        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "YOUR_TEAM_ID"
+        "appleId": "derekhaber.jr@comcast.net",
+        "ascAppId": "6760490562",
+        "appleTeamId": "9NAPGJ7236"
       }
     }
   }
