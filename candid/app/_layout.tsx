@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -47,14 +47,33 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const checkProfile = useCallback(async () => {
+    try {
+      await api.get('/users/me');
+      setProfileReady(true);
+    } catch {
+      setProfileReady(false);
+    }
+  }, []);
+
   // Check whether a DB row exists whenever the session user changes
   useEffect(() => {
-    if (!session) { setProfileReady(null); return; }
-    setProfileReady(null); // reset while checking
-    api.get('/users/me')
-      .then(() => setProfileReady(true))
-      .catch(() => setProfileReady(false));
-  }, [session?.user?.id]);
+    if (!session) {
+      setProfileReady(null);
+      return;
+    }
+    checkProfile();
+  }, [session?.user?.id, checkProfile]);
+
+  // Re-check profile if we are navigating and it's not ready yet
+  useEffect(() => {
+    const onSetupScreen = segments[0] === 'setup-username';
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (session && profileReady === false && !onSetupScreen && !inAuthGroup) {
+      checkProfile();
+    }
+  }, [segments, session, profileReady, checkProfile]);
 
   useEffect(() => {
     if (!initialized || (session && profileReady === null)) return;
@@ -65,11 +84,11 @@ export default function RootLayout() {
 
     if (!session) {
       if (!inAuthGroup) router.replace('/(auth)/login');
-    } else if (!profileReady) {
+    } else if (profileReady === false) {
       // Has a session but no DB row — ask them to pick a username.
       // Don't redirect if already in tabs (handles post-setup navigation).
       if (!onSetupScreen && !inTabs) router.replace('/setup-username');
-    } else {
+    } else if (profileReady === true) {
       // Profile exists — leave auth / setup screens
       if (inAuthGroup || onSetupScreen) router.replace('/(tabs)/camera');
     }

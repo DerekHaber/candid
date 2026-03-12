@@ -17,16 +17,11 @@ import { api } from '../../lib/api';
 export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function signUp() {
-    if (!email || !password || !username) {
+    if (!email || !password) {
       Alert.alert('Error', 'Please fill in all fields.');
-      return;
-    }
-    if (username.length < 3) {
-      Alert.alert('Error', 'Username must be at least 3 characters.');
       return;
     }
 
@@ -59,21 +54,6 @@ export default function SignupScreen() {
         'We sent you a confirmation link. Tap it to activate your account, then sign in.',
         [{ text: 'OK' }]
       );
-      setLoading(false);
-      return;
-    }
-
-    // Create the user row in Lightsail DB
-    if (data.user) {
-      try {
-        await api.post('/users', { username: username.trim().toLowerCase() });
-      } catch (e: any) {
-        // Roll back the auth session so they don't end up with a session but no DB row
-        await supabase.auth.signOut();
-        Alert.alert('Sign Up Failed', e.message ?? 'Could not create profile.');
-        setLoading(false);
-        return;
-      }
     }
 
     setLoading(false);
@@ -91,15 +71,6 @@ export default function SignupScreen() {
       </View>
 
       <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="username"
-          placeholderTextColor="#555"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
         <TextInput
           style={styles.input}
           placeholder="email"
