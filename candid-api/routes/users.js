@@ -61,9 +61,22 @@ router.patch('/me', async (req, res) => {
   res.json({ ok: true });
 });
 
-// DELETE /users/me — delete account
+// DELETE /users/me — delete account (DB row + Supabase Auth user)
 router.delete('/me', async (req, res) => {
   await db.query('DELETE FROM users WHERE id = $1', [req.userId]);
+
+  // Delete from Supabase Auth via admin API
+  await fetch(
+    `${process.env.SUPABASE_URL}/auth/v1/admin/users/${req.userId}`,
+    {
+      method: 'DELETE',
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      },
+    }
+  );
+
   res.json({ ok: true });
 });
 

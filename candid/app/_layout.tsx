@@ -46,33 +46,15 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    // Handle deep links for email verification (candid://?code=... or candid://#access_token=...)
-    const handleDeepLink = ({ url }: { url: string }) => {
+    // Handle deep links when the app is already open (e.g. tapping link while app is backgrounded)
+    const linkSub = Linking.addEventListener('url', ({ url }) => {
       supabase.auth.exchangeCodeForSession(url).catch(() => {});
-    };
-    const linkSub = Linking.addEventListener('url', handleDeepLink);
-    Linking.getInitialURL().then(url => {
-      if (url) supabase.auth.exchangeCodeForSession(url).catch(() => {});
-    });
-
-    // Get the current session on mount
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        // Stale/invalid token stored on device — clear it and show login
-        supabase.auth.signOut();
-        setInitialized(true);
-        return;
-      }
-      setSession(session);
-      setInitialized(true);
-      if (session?.user?.id) registerPushToken(session.user.id);
     });
 
     // Listen for auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === 'TOKEN_REFRESHED' && !session) {
-          // Refresh token was invalid — clear local session and go to login
           supabase.auth.signOut();
           return;
         }
@@ -80,6 +62,27 @@ export default function RootLayout() {
         if (!session) setProfileReady(null);
       }
     );
+
+    // Init: exchange code from deep link FIRST, then get session.
+    // This prevents a race where getSession() resolves before the code
+    // exchange completes, causing a double-navigation crash.
+    async function init() {
+      const url = await Linking.getInitialURL();
+      if (url) {
+        await supabase.auth.exchangeCodeForSession(url).catch(() => {});
+      }
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        supabase.auth.signOut();
+        setInitialized(true);
+        return;
+      }
+      setSession(session);
+      setInitialized(true);
+      if (session?.user?.id) registerPushToken(session.user.id);
+    }
+
+    init();
 
     return () => {
       subscription.unsubscribe();

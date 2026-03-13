@@ -22,15 +22,12 @@ async function getUploadUrl(key, contentType) {
   return getSignedUrl(client, cmd, { expiresIn: 900 });
 }
 
-async function getReadUrl(key) {
-  const cmd = new GetObjectCommand({ Bucket: BUCKET(), Key: key });
-  return getSignedUrl(client, cmd, { expiresIn: 3600 });
+function getReadUrl(key) {
+  return `${process.env.R2_PUBLIC_URL}/${key}`;
 }
 
-async function getReadUrls(keys) {
-  return Promise.all(
-    keys.map(async key => ({ path: key, signedUrl: await getReadUrl(key) }))
-  );
+function getReadUrls(keys) {
+  return keys.map(key => ({ path: key, signedUrl: getReadUrl(key) }));
 }
 
 async function deleteObject(key) {
