@@ -141,8 +141,8 @@ export default function RootLayout() {
       // Don't redirect if already in tabs (handles post-setup navigation).
       if (!onSetupScreen && !inTabs) router.replace('/setup-username');
     } else if (profileReady === true) {
-      // Profile exists — leave auth / setup screens
-      if (inAuthGroup || onSetupScreen) router.replace('/(tabs)/camera');
+      // Profile exists — go to app from auth/setup/index screens
+      if (inAuthGroup || onSetupScreen || !segments[0]) router.replace('/(tabs)/camera');
     }
   }, [session, initialized, profileReady, segments]);
 
