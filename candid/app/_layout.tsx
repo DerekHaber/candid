@@ -154,7 +154,7 @@ export default function RootLayout() {
       if (!onSetupScreen && !inTabs) router.replace('/setup-username');
     } else if (profileReady === true) {
       // Profile exists — go to app from auth/setup/index screens
-      if (inAuthGroup || onSetupScreen || !segments[0]) router.replace('/(tabs)/camera');
+      if (inAuthGroup || onSetupScreen || onCallbackScreen || !segments[0]) router.replace('/(tabs)/camera');
     }
   }, [session, initialized, profileReady, segments]);
 

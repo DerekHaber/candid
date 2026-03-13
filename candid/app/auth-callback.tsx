@@ -1,22 +1,43 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 
-// This screen is the landing point for the email verification deep link:
-//   candid://auth-callback?code=XXXX
-// We exchange the code for a session and let _layout.tsx handle routing.
+// Landing screen for the email verification deep link: candid://auth-callback?code=XXXX
+// Exchanges the code, checks profile state, then navigates directly.
 export default function AuthCallbackScreen() {
   const params = useLocalSearchParams<{ code?: string }>();
+  const router = useRouter();
 
   useEffect(() => {
-    if (params.code) {
-      // Build a full URL so exchangeCodeForSession can parse it
-      supabase.auth
-        .exchangeCodeForSession(`candid://auth-callback?code=${params.code}`)
-        .catch(() => {});
+    async function handleCallback() {
+      // Exchange the code for a session. _layout.tsx init() may have already
+      // done this via getInitialURL — if so, this call fails silently.
+      if (params.code) {
+        await supabase.auth
+          .exchangeCodeForSession(`candid://auth-callback?code=${params.code}`)
+          .catch(() => {});
+      }
+
+      // Verify we have a session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace('/(auth)/login');
+        return;
+      }
+
+      // Check whether this user has a profile row yet
+      try {
+        await api.get('/users/me');
+        router.replace('/(tabs)/camera');
+      } catch (e: any) {
+        router.replace(e?.status === 404 ? '/setup-username' : '/(tabs)/camera');
+      }
     }
-  }, [params.code]);
+
+    handleCallback();
+  }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
