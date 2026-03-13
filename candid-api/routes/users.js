@@ -61,11 +61,21 @@ router.patch('/me', async (req, res) => {
   res.json({ ok: true });
 });
 
+// DELETE /users/me — delete account
+router.delete('/me', async (req, res) => {
+  await db.query('DELETE FROM users WHERE id = $1', [req.userId]);
+  res.json({ ok: true });
+});
+
 // GET /users/search?q=
 router.get('/search', async (req, res) => {
   const q = `%${(req.query.q ?? '').trim()}%`;
   const { rows } = await db.query(
-    'SELECT id, username FROM users WHERE username ILIKE $1 AND id != $2 LIMIT 20',
+    `SELECT id, username FROM users
+     WHERE username ILIKE $1 AND id != $2
+       AND id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = $2)
+       AND id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = $2)
+     LIMIT 20`,
     [q, req.userId]
   );
   res.json(rows);
@@ -89,6 +99,23 @@ router.get('/:id', async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ error: 'User not found' });
   res.json({ ...rows[0], avatar_url: await resolveAvatarUrl(rows[0].avatar_url) });
+});
+
+// GET /users/:id/posts — public feed posts for a user's profile (friends only)
+router.get('/:id/posts', async (req, res) => {
+  const { rows } = await db.query(
+    `SELECT p.id, p.storage_path, p.created_at, p.caption, p.media_type
+     FROM photos p
+     WHERE p.user_id = $1 AND p.shared_to_feed = true AND p.developed = true
+     ORDER BY p.created_at DESC
+     LIMIT 30`,
+    [req.params.id]
+  );
+  if (rows.length === 0) return res.json([]);
+  const r2mod = require('../lib/r2');
+  const urls = await r2mod.getReadUrls(rows.map(r => r.storage_path));
+  const urlMap = new Map(urls.map(u => [u.path, u.signedUrl]));
+  res.json(rows.map(r => ({ ...r, signedUrl: urlMap.get(r.storage_path) })));
 });
 
 // R2 keys start with "avatars/" — full http(s) URLs are legacy Supabase, pass through

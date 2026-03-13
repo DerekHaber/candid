@@ -10,6 +10,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ActionSheetIOS,
+  Alert,
+  Platform,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +29,7 @@ const PAGE_SIZE = 10;
 
 type FeedPhoto = {
   id: string;
+  user_id: string;
   storage_path: string;
   created_at: string;
   caption: string | null;
@@ -135,7 +139,10 @@ export default function FeedScreen() {
     const { previewMap: newPreviewMap, countMap: newCountMap } = buildCommentMaps(commentRows ?? []);
 
     if (append) {
-      setPhotos(prev => [...prev, ...rows]);
+      setPhotos(prev => {
+        const seen = new Set(prev.map(p => p.id));
+        return [...prev, ...rows.filter(r => !seen.has(r.id))];
+      });
       setReactionMap(prev => new Map([...prev, ...newReactionMap]));
       setCommentMap(prev => new Map([...prev, ...newPreviewMap]));
       setCommentCountMap(prev => new Map([...prev, ...newCountMap]));
@@ -249,6 +256,51 @@ export default function FeedScreen() {
     }
   }
 
+  function handleMore(photo: FeedPhoto) {
+    const username = photo.users?.username ?? 'this user';
+    const options = ['Report post', `Block @${username}`, 'Cancel'];
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+        async (idx) => {
+          if (idx === 0) await submitReport({ reported_photo_id: photo.id, reason: 'inappropriate' });
+          if (idx === 1) await blockUser(photo.user_id, username);
+        }
+      );
+    } else {
+      Alert.alert('Options', undefined, [
+        { text: 'Report post', onPress: () => submitReport({ reported_photo_id: photo.id, reason: 'inappropriate' }) },
+        { text: `Block @${username}`, style: 'destructive', onPress: () => blockUser(photo.user_id, username) },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  }
+
+  async function submitReport(body: { reported_photo_id?: string; reported_user_id?: string; reason: string }) {
+    try {
+      await api.post('/reports', body);
+      Alert.alert('Reported', 'Thank you. We will review this.');
+    } catch {
+      Alert.alert('Error', 'Could not submit report.');
+    }
+  }
+
+  async function blockUser(userId: string, username: string) {
+    Alert.alert(`Block @${username}?`, 'They will be removed from your feed and cannot find you.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Block', style: 'destructive', onPress: async () => {
+          try {
+            await api.post('/blocks', { blocked_id: userId });
+            setPhotos(prev => prev.filter(p => p.user_id !== userId));
+          } catch {
+            Alert.alert('Error', 'Could not block user.');
+          }
+        }
+      },
+    ]);
+  }
+
   async function loadPendingCount() {
     try {
       const { count } = await api.get('/friends/pending-count');
@@ -359,7 +411,10 @@ export default function FeedScreen() {
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
-              <View style={styles.avatar}>
+              <TouchableOpacity
+                style={styles.avatar}
+                onPress={() => router.push(`/user/${item.user_id}`)}
+              >
                 {item.users?.avatar_url ? (
                   <Image source={{ uri: item.users.avatar_url }} style={styles.avatarImage} />
                 ) : (
@@ -367,11 +422,17 @@ export default function FeedScreen() {
                     {(item.users?.username?.[0] ?? '?').toUpperCase()}
                   </Text>
                 )}
-              </View>
-              <View style={styles.cardMeta}>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cardMeta}
+                onPress={() => router.push(`/user/${item.user_id}`)}
+              >
                 <Text style={styles.username}>{item.users?.username ?? 'unknown'}</Text>
                 <Text style={styles.timestamp}>{timeAgo(item.created_at)}</Text>
-              </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.moreButton} onPress={() => handleMore(item)}>
+                <Ionicons name="ellipsis-horizontal" size={18} color="#555" />
+              </TouchableOpacity>
             </View>
 
             {item.signedUrl ? (
@@ -492,6 +553,7 @@ const styles = StyleSheet.create({
   emptySubtext: { fontSize: 13, color: '#333', textAlign: 'center', lineHeight: 20 },
   card: { marginBottom: 32 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
+  moreButton: { marginLeft: 'auto', padding: 4 },
   avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#1e1e1e', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: '#f5f0e8', fontSize: 13, fontWeight: '500' },

@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -110,6 +111,16 @@ export default function SignupScreen() {
             </Text>
           </TouchableOpacity>
         </Link>
+
+        <Text style={styles.privacyText}>
+          by signing up you agree to our{' '}
+          <Text
+            style={styles.privacyLink}
+            onPress={() => Linking.openURL('https://justcandid.net/privacy.html')}
+          >
+            privacy policy
+          </Text>
+        </Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -180,5 +191,16 @@ const styles = StyleSheet.create({
   },
   linkAccent: {
     color: '#f5f0e8',
+  },
+  privacyText: {
+    color: '#333',
+    fontSize: 12,
+    textAlign: 'center',
+    letterSpacing: 0.3,
+    marginTop: 8,
+  },
+  privacyLink: {
+    color: '#555',
+    textDecorationLine: 'underline',
   },
 });

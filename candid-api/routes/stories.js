@@ -29,7 +29,9 @@ router.get('/', async (req, res) => {
            )
        ) as has_unseen
      FROM users u
-     WHERE u.id IN (SELECT DISTINCT user_id FROM story_photos)`,
+     WHERE u.id IN (SELECT DISTINCT user_id FROM story_photos)
+       AND u.id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = $1)
+       AND u.id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = $1)`,
     [req.userId]
   );
   // Map has_unseen → hasUnseen to match mobile type

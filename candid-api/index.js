@@ -9,6 +9,8 @@ const feedRouter = require('./routes/feed');
 const friendsRouter = require('./routes/friends');
 const storiesRouter = require('./routes/stories');
 const commentsRouter = require('./routes/comments');
+const blocksRouter = require('./routes/blocks');
+const reportsRouter = require('./routes/reports');
 
 const app = express();
 app.use(cors());
@@ -22,6 +24,8 @@ app.use('/feed', auth, feedRouter);
 app.use('/friends', auth, friendsRouter);
 app.use('/stories', auth, storiesRouter);
 app.use('/comments', auth, commentsRouter);
+app.use('/blocks', auth, blocksRouter);
+app.use('/reports', auth, reportsRouter);
 
 app.post('/story-views', auth, storiesRouter.markViewed);
 

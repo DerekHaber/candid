@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
-import { View, ActivityIndicator, Platform } from 'react-native';
+import { View, ActivityIndicator, Platform, TouchableOpacity, Text, Linking } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 
@@ -12,8 +12,25 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
+
+// Shown after 4s on the loading screen — lets users escape a stuck state
+function EscapeHatch() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+  if (!visible) return null;
+  return (
+    <TouchableOpacity onPress={() => supabase.auth.signOut()} style={{ padding: 16 }}>
+      <Text style={{ color: '#444', fontSize: 13, letterSpacing: 1 }}>stuck? tap to sign out</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -29,8 +46,23 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    // Handle deep links for email verification (candid://?code=... or candid://#access_token=...)
+    const handleDeepLink = ({ url }: { url: string }) => {
+      supabase.auth.exchangeCodeForSession(url).catch(() => {});
+    };
+    const linkSub = Linking.addEventListener('url', handleDeepLink);
+    Linking.getInitialURL().then(url => {
+      if (url) supabase.auth.exchangeCodeForSession(url).catch(() => {});
+    });
+
     // Get the current session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Stale/invalid token stored on device — clear it and show login
+        supabase.auth.signOut();
+        setInitialized(true);
+        return;
+      }
       setSession(session);
       setInitialized(true);
       if (session?.user?.id) registerPushToken(session.user.id);
@@ -38,21 +70,38 @@ export default function RootLayout() {
 
     // Listen for auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          // Refresh token was invalid — clear local session and go to login
+          supabase.auth.signOut();
+          return;
+        }
         setSession(session);
         if (!session) setProfileReady(null);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      linkSub.remove();
+    };
   }, []);
 
   const checkProfile = useCallback(async () => {
     try {
-      await api.get('/users/me');
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 8000)
+      );
+      await Promise.race([api.get('/users/me'), timeout]);
       setProfileReady(true);
-    } catch {
-      setProfileReady(false);
+    } catch (e: any) {
+      if (e?.message?.toLowerCase().includes('refresh token')) {
+        await supabase.auth.signOut();
+        return;
+      }
+      // Only treat a 404 as "no profile" — network errors, timeouts, etc.
+      // should not send the user to setup-username
+      setProfileReady(e?.status === 404 ? false : true);
     }
   }, []);
 
@@ -116,8 +165,9 @@ export default function RootLayout() {
   // Show a blank loading screen while we check auth state and profile
   if (!initialized || (session && profileReady === null)) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: '#0a0a0a', alignItems: 'center', justifyContent: 'center', gap: 32 }}>
         <ActivityIndicator color="#f5f0e8" />
+        <EscapeHatch />
       </View>
     );
   }

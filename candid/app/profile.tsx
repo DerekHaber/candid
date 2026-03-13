@@ -11,8 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActionSheetIOS,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Link } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase'; // auth only (signOut)
@@ -115,6 +116,39 @@ export default function ProfileScreen() {
     await supabase.auth.signOut();
   }
 
+  function confirmDeleteAccount() {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: 'Delete account?',
+          message: 'This permanently deletes your account and all your photos. This cannot be undone.',
+          options: ['Delete my account', 'Cancel'],
+          destructiveButtonIndex: 0,
+          cancelButtonIndex: 1,
+        },
+        async (idx) => { if (idx === 0) await deleteAccount(); }
+      );
+    } else {
+      Alert.alert(
+        'Delete account?',
+        'This permanently deletes your account and all your photos. This cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: deleteAccount },
+        ]
+      );
+    }
+  }
+
+  async function deleteAccount() {
+    try {
+      await api.delete('/users/me');
+      await supabase.auth.signOut();
+    } catch {
+      Alert.alert('Error', 'Could not delete account. Please try again.');
+    }
+  }
+
   if (loading || !profile) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -198,6 +232,16 @@ export default function ProfileScreen() {
             <Text style={styles.saveButtonText}>save changes</Text>
           )}
         </TouchableOpacity>
+
+        <Link href="/blocked-users" asChild>
+          <TouchableOpacity style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>blocked users</Text>
+          </TouchableOpacity>
+        </Link>
+
+        <TouchableOpacity style={styles.deleteButton} onPress={confirmDeleteAccount}>
+          <Text style={styles.deleteButtonText}>delete account</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -275,4 +319,8 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: { color: '#0a0a0a', fontSize: 15, fontWeight: '600', letterSpacing: 1 },
+  secondaryButton: { marginTop: 16, marginHorizontal: 20, paddingVertical: 14, alignItems: 'center' },
+  secondaryButtonText: { color: '#555', fontSize: 13, letterSpacing: 1 },
+  deleteButton: { marginTop: 4, marginHorizontal: 20, paddingVertical: 14, alignItems: 'center' },
+  deleteButtonText: { color: '#444', fontSize: 13, letterSpacing: 1 },
 });

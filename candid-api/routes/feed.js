@@ -21,12 +21,14 @@ router.get('/', async (req, res) => {
        FROM friends
        WHERE (user_id = $1 OR friend_id = $1) AND status = 'accepted'
      )
-     SELECT p.id, p.storage_path, p.created_at, p.caption, p.media_type,
+     SELECT p.id, p.user_id, p.storage_path, p.created_at, p.caption, p.media_type,
             json_build_object('username', u.username, 'avatar_url', u.avatar_url) as users
      FROM photos p
      JOIN users u ON u.id = p.user_id
      WHERE p.shared_to_feed = true AND p.developed = true
        AND p.user_id IN (SELECT friend_id FROM accepted_friends)
+       AND p.user_id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = $1)
+       AND p.user_id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = $1)
      ${cursorClause}
      ORDER BY p.created_at DESC
      LIMIT $2`,

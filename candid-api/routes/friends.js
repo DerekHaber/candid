@@ -24,6 +24,15 @@ router.get('/', async (req, res) => {
 // POST /friends — send request { friend_id }
 router.post('/', async (req, res) => {
   const { friend_id } = req.body;
+  // Refuse if either party has blocked the other
+  const { rows: blockCheck } = await db.query(
+    `SELECT 1 FROM blocks
+     WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $2 AND blocked_id = $1)
+     LIMIT 1`,
+    [req.userId, friend_id]
+  );
+  if (blockCheck.length > 0) return res.status(403).json({ error: 'Cannot send request.' });
+
   const { rows } = await db.query(
     `INSERT INTO friends (user_id, friend_id, status)
      VALUES ($1, $2, 'pending')
