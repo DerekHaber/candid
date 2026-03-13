@@ -143,10 +143,11 @@ export default function RootLayout() {
 
     const inAuthGroup = segments[0] === '(auth)';
     const onSetupScreen = segments[0] === 'setup-username';
+    const onCallbackScreen = segments[0] === 'auth-callback';
     const inTabs = segments[0] === '(tabs)';
 
     if (!session) {
-      if (!inAuthGroup) router.replace('/(auth)/login');
+      if (!inAuthGroup && !onCallbackScreen) router.replace('/(auth)/login');
     } else if (profileReady === false) {
       // Has a session but no DB row — ask them to pick a username.
       // Don't redirect if already in tabs (handles post-setup navigation).
