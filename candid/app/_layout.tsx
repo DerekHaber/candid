@@ -48,7 +48,9 @@ export default function RootLayout() {
   useEffect(() => {
     // Handle deep links when the app is already open (e.g. tapping link while app is backgrounded)
     const linkSub = Linking.addEventListener('url', ({ url }) => {
-      supabase.auth.exchangeCodeForSession(url).catch(() => {});
+      if (url.includes('code=') || url.includes('access_token=')) {
+        supabase.auth.exchangeCodeForSession(url).catch(() => {});
+      }
     });
 
     // Listen for auth state changes (login, logout, token refresh)
@@ -68,7 +70,7 @@ export default function RootLayout() {
     // exchange completes, causing a double-navigation crash.
     async function init() {
       const url = await Linking.getInitialURL();
-      if (url) {
+      if (url && (url.includes('code=') || url.includes('access_token='))) {
         await supabase.auth.exchangeCodeForSession(url).catch(() => {});
       }
       const { data: { session }, error } = await supabase.auth.getSession();
