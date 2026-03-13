@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>candid admin — reports</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0a;
+      color: #f5f0e8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+    header {
+      background: #111;
+      border-bottom: 1px solid #1e1e1e;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 16px; font-weight: 300; letter-spacing: 5px; color: #f5f0e8; }
+    header .meta { font-size: 12px; color: #444; letter-spacing: 1px; }
+    .logout-btn {
+      background: none;
+      border: 1px solid #2a2a2a;
+      color: #666;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      letter-spacing: 1px;
+    }
+    .logout-btn:hover { border-color: #444; color: #999; }
+    main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+    .page-title {
+      font-size: 13px;
+      color: #555;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .count { color: #f5f0e8; }
+    .empty {
+      text-align: center;
+      color: #333;
+      font-size: 14px;
+      letter-spacing: 2px;
+      padding: 80px 0;
+    }
+    .report-card {
+      background: #111;
+      border: 1px solid #1e1e1e;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .report-card.banned { border-color: #2a1a1a; }
+    .report-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid #1a1a1a;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .report-header-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    .badge-user { background: #1a1a2e; color: #7070cc; }
+    .badge-post { background: #1a2a1a; color: #60a060; }
+    .badge-banned { background: #2a1010; color: #cc5555; }
+    .report-id { font-size: 11px; color: #333; font-family: monospace; }
+    .report-time { font-size: 11px; color: #444; }
+    .report-body { display: flex; padding: 20px; gap: 20px; flex-wrap: wrap; }
+    .report-info { flex: 1; min-width: 240px; }
+    .info-row { margin-bottom: 10px; }
+    .info-label { font-size: 10px; color: #444; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
+    .info-value { font-size: 14px; color: #ddd; }
+    .info-value.username { color: #f5f0e8; font-weight: 500; }
+    .info-value.reason {
+      font-size: 13px;
+      color: #aaa;
+      background: #0d0d0d;
+      border: 1px solid #1e1e1e;
+      border-radius: 6px;
+      padding: 8px 10px;
+      line-height: 1.5;
+    }
+    .report-photo { flex-shrink: 0; }
+    .report-photo img {
+      width: 160px;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #1e1e1e;
+      display: block;
+    }
+    .report-photo .no-photo {
+      width: 160px;
+      height: 80px;
+      background: #0d0d0d;
+      border: 1px solid #1e1e1e;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #333;
+      letter-spacing: 2px;
+    }
+    .actions {
+      padding: 14px 20px;
+      background: #0d0d0d;
+      border-top: 1px solid #1a1a1a;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.8px;
+      padding: 7px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-dismiss { background: #1a1a1a; color: #777; border: 1px solid #252525; }
+    .btn-dismiss:hover { background: #222; color: #aaa; }
+    .btn-delete-post { background: #1a2a1a; color: #60a060; border: 1px solid #1a3a1a; }
+    .btn-delete-post:hover { background: #1d341d; }
+    .btn-ban { background: #2a1a0a; color: #cc8844; border: 1px solid #3a2a0a; }
+    .btn-ban:hover { background: #341f0d; }
+    .btn-delete-user { background: #2a0a0a; color: #cc4444; border: 1px solid #3a1010; }
+    .btn-delete-user:hover { background: #340d0d; }
+    .btn-unban { background: #0a1a2a; color: #4488cc; border: 1px solid #0a2a3a; }
+    .btn-unban:hover { background: #0d2134; }
+    .confirm-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .confirm-overlay.active { display: flex; }
+    .confirm-box {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 28px 32px;
+      max-width: 360px;
+      width: 90%;
+    }
+    .confirm-box h3 { font-size: 16px; font-weight: 400; margin-bottom: 8px; }
+    .confirm-box p { font-size: 13px; color: #666; margin-bottom: 24px; line-height: 1.5; }
+    .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .btn-cancel { background: #1a1a1a; color: #777; border: 1px solid #252525; }
+    .btn-cancel:hover { background: #222; }
+    .btn-confirm-delete { background: #2a0a0a; color: #cc4444; border: 1px solid #3a1010; }
+    .btn-confirm-delete:hover { background: #340d0d; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>candid</h1>
+    <span class="meta">admin panel</span>
+    <form method="POST" action="/auth/logout" style="display:inline">
+      <button class="logout-btn" type="submit">sign out</button>
+    </form>
+  </header>
+
+  <main>
+    <p class="page-title">
+      reports &mdash; <span class="count"><%= reports.length %> open</span>
+    </p>
+
+    <% if (reports.length === 0) { %>
+      <div class="empty">no open reports</div>
+    <% } %>
+
+    <% reports.forEach(r => { %>
+      <div class="report-card <%= r.reported_banned_at ? 'banned' : '' %>">
+        <div class="report-header">
+          <div class="report-header-left">
+            <% if (r.reported_photo_id) { %>
+              <span class="badge badge-post">post report</span>
+            <% } else { %>
+              <span class="badge badge-user">user report</span>
+            <% } %>
+            <% if (r.reported_banned_at) { %>
+              <span class="badge badge-banned">user banned</span>
+            <% } %>
+            <span class="report-id">#<%= r.id.split('-')[0] %></span>
+          </div>
+          <span class="report-time"><%= new Date(r.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %></span>
+        </div>
+
+        <div class="report-body">
+          <div class="report-info">
+            <div class="info-row">
+              <div class="info-label">reported by</div>
+              <div class="info-value username">@<%= r.reporter_username || 'deleted user' %></div>
+            </div>
+            <% if (r.reported_username) { %>
+              <div class="info-row">
+                <div class="info-label">reported user</div>
+                <div class="info-value username">@<%= r.reported_username %></div>
+              </div>
+            <% } %>
+            <div class="info-row">
+              <div class="info-label">reason</div>
+              <div class="info-value reason"><%= r.reason %></div>
+            </div>
+            <% if (r.photo_caption) { %>
+              <div class="info-row">
+                <div class="info-label">post caption</div>
+                <div class="info-value" style="color:#888; font-size:13px"><%= r.photo_caption %></div>
+              </div>
+            <% } %>
+          </div>
+
+          <% if (r.reported_photo_id) { %>
+            <div class="report-photo">
+              <% if (r.photo_url && r.photo_media_type !== 'video') { %>
+                <img src="<%= r.photo_url %>" alt="reported post" loading="lazy">
+              <% } else if (r.photo_url && r.photo_media_type === 'video') { %>
+                <video src="<%= r.photo_url %>" width="160" height="160" style="border-radius:8px;border:1px solid #1e1e1e;object-fit:cover" muted playsinline controls></video>
+              <% } else { %>
+                <div class="no-photo">post deleted</div>
+              <% } %>
+            </div>
+          <% } %>
+        </div>
+
+        <div class="actions">
+          <form method="POST" action="/reports/<%= r.id %>/dismiss" style="display:inline">
+            <button class="btn btn-dismiss" type="submit">dismiss</button>
+          </form>
+
+          <% if (r.reported_photo_id && r.photo_url) { %>
+            <button class="btn btn-delete-post" onclick="confirmAction('delete-post-<%= r.id %>')">delete post</button>
+            <form id="delete-post-<%= r.id %>-form" method="POST" action="/reports/<%= r.id %>/delete-post" style="display:none">
+            </form>
+          <% } %>
+
+          <% if (r.reported_user_id) { %>
+            <% if (!r.reported_banned_at) { %>
+              <button class="btn btn-ban" onclick="confirmAction('ban-<%= r.id %>')">ban user</button>
+              <form id="ban-<%= r.id %>-form" method="POST" action="/reports/<%= r.id %>/ban-user" style="display:none"></form>
+            <% } else { %>
+              <form method="POST" action="/users/<%= r.reported_user_id %>/unban" style="display:inline">
+                <button class="btn btn-unban" type="submit">unban</button>
+              </form>
+            <% } %>
+            <button class="btn btn-delete-user" onclick="confirmAction('delete-user-<%= r.id %>')">delete account</button>
+            <form id="delete-user-<%= r.id %>-form" method="POST" action="/reports/<%= r.id %>/delete-user" style="display:none"></form>
+          <% } %>
+        </div>
+      </div>
+    <% }) %>
+  </main>
+
+  <!-- Confirmation overlay -->
+  <div class="confirm-overlay" id="confirmOverlay" onclick="closeConfirm(event)">
+    <div class="confirm-box" onclick="event.stopPropagation()">
+      <h3 id="confirmTitle">are you sure?</h3>
+      <p id="confirmDesc">This action cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="btn btn-cancel" onclick="closeConfirm()">cancel</button>
+        <button class="btn btn-confirm-delete" id="confirmOk" onclick="submitConfirmed()">confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let pendingFormId = null;
+
+    const actions = {
+      'delete-post': { title: 'delete post?', desc: 'The post will be permanently removed.', label: 'delete post' },
+      'ban': { title: 'ban user?', desc: 'The user will be blocked from using the app. All their reports will be dismissed. You can unban later.', label: 'ban user' },
+      'delete-user': { title: 'delete account?', desc: 'The user and all their data will be permanently deleted from the database and Supabase Auth. This cannot be undone.', label: 'delete account' },
+    };
+
+    function confirmAction(key) {
+      const type = key.split('-').slice(0, -1).join('-');
+      // handle 'delete-post', 'ban', 'delete-user' prefixes
+      let actionKey = null;
+      if (key.startsWith('delete-post-')) actionKey = 'delete-post';
+      else if (key.startsWith('ban-')) actionKey = 'ban';
+      else if (key.startsWith('delete-user-')) actionKey = 'delete-user';
+
+      const info = actions[actionKey] || { title: 'confirm?', desc: '', label: 'confirm' };
+      document.getElementById('confirmTitle').textContent = info.title;
+      document.getElementById('confirmDesc').textContent = info.desc;
+      document.getElementById('confirmOk').textContent = info.label;
+      pendingFormId = key + '-form';
+      document.getElementById('confirmOverlay').classList.add('active');
+    }
+
+    function submitConfirmed() {
+      if (pendingFormId) {
+        document.getElementById(pendingFormId).submit();
+      }
+      closeConfirm();
+    }
+
+    function closeConfirm(e) {
+      if (e && e.target !== document.getElementById('confirmOverlay')) return;
+      document.getElementById('confirmOverlay').classList.remove('active');
+      pendingFormId = null;
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeConfirm();
+    });
+  </script>
+</body>
+</html>
