@@ -1,33 +1,22 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
 
-// Landing screen for the email verification deep link: candid://auth-callback?code=XXXX
-// Exchanges the code, checks profile state, then navigates directly.
+// Landing screen for email verification deep link: candid://auth-callback?code=XXXX
+// _layout.tsx init() already exchanged the code via getInitialURL before this screen
+// renders. We just read the established session and navigate.
 export default function AuthCallbackScreen() {
-  const params = useLocalSearchParams<{ code?: string }>();
   const router = useRouter();
 
   useEffect(() => {
     async function handleCallback() {
-      // Exchange the code for a session. _layout.tsx init() may have already
-      // done this via getInitialURL — if so, this call fails silently.
-      if (params.code) {
-        await supabase.auth
-          .exchangeCodeForSession(`candid://auth-callback?code=${params.code}`)
-          .catch(() => {});
-      }
-
-      // Verify we have a session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.replace('/(auth)/login');
         return;
       }
-
-      // Check whether this user has a profile row yet
       try {
         await api.get('/users/me');
         router.replace('/(tabs)/camera');
@@ -35,7 +24,6 @@ export default function AuthCallbackScreen() {
         router.replace(e?.status === 404 ? '/setup-username' : '/(tabs)/camera');
       }
     }
-
     handleCallback();
   }, []);
 
