@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
-import { View, ActivityIndicator, Platform, TouchableOpacity, Text, Linking } from 'react-native';
+import { View, ActivityIndicator, Platform, TouchableOpacity, Text, Linking, InteractionManager } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 
@@ -79,7 +79,6 @@ export default function RootLayout() {
       }
       setSession(session);
       setInitialized(true);
-      if (session?.user?.id) registerPushToken(session.user.id);
     }
 
     init();
@@ -107,6 +106,16 @@ export default function RootLayout() {
       setProfileReady(e?.status === 404 ? false : true);
     }
   }, []);
+
+  // Register push token only after profile is confirmed and all navigation animations finish.
+  // Calling Notifications native APIs during a navigation transition can crash (TurboModule SIGABRT).
+  useEffect(() => {
+    if (!session?.user?.id || profileReady !== true) return;
+    const task = InteractionManager.runAfterInteractions(() => {
+      registerPushToken(session.user.id);
+    });
+    return () => task.cancel();
+  }, [session?.user?.id, profileReady]);
 
   // Check whether a DB row exists whenever the session user changes
   useEffect(() => {

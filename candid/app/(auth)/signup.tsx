@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Keyboard,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -25,7 +26,7 @@ export default function SignupScreen() {
       Alert.alert('Error', 'Please fill in all fields.');
       return;
     }
-
+    Keyboard.dismiss();
     setLoading(true);
 
     // Sign up with Supabase Auth.

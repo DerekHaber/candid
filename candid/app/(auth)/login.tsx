@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -23,6 +24,7 @@ export default function LoginScreen() {
       Alert.alert('Error', 'Please fill in all fields.');
       return;
     }
+    Keyboard.dismiss();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) Alert.alert('Sign In Failed', error.message);

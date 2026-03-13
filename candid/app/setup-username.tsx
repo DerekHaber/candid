@@ -9,6 +9,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../lib/api';
@@ -23,6 +24,7 @@ export default function SetupUsernameScreen() {
       Alert.alert('Error', 'Username must be at least 3 characters.');
       return;
     }
+    Keyboard.dismiss();
     setLoading(true);
     try {
       await api.post('/users', { username: username.trim().toLowerCase() });
