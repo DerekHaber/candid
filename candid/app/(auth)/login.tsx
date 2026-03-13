@@ -5,11 +5,8 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   Alert,
-  Keyboard,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -24,7 +21,6 @@ export default function LoginScreen() {
       Alert.alert('Error', 'Please fill in all fields.');
       return;
     }
-    Keyboard.dismiss();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) Alert.alert('Sign In Failed', error.message);
@@ -32,10 +28,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>candid</Text>
         <Text style={styles.tagline}>moments, unfiltered.</Text>
@@ -82,7 +75,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </Link>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

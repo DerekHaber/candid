@@ -7,9 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../lib/api';
@@ -24,7 +21,6 @@ export default function SetupUsernameScreen() {
       Alert.alert('Error', 'Username must be at least 3 characters.');
       return;
     }
-    Keyboard.dismiss();
     setLoading(true);
     try {
       await api.post('/users', { username: username.trim().toLowerCase() });
@@ -36,10 +32,7 @@ export default function SetupUsernameScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={styles.container}>
       <View style={styles.inner}>
         <Text style={styles.title}>choose a username</Text>
         <Text style={styles.subtitle}>this is how friends will find you.</Text>
@@ -52,7 +45,6 @@ export default function SetupUsernameScreen() {
           onChangeText={setUsername}
           autoCapitalize="none"
           autoCorrect={false}
-          autoFocus
           maxLength={30}
         />
 
@@ -68,7 +60,7 @@ export default function SetupUsernameScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
