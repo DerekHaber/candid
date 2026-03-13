@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../lib/api';
@@ -32,7 +34,11 @@ export default function SetupUsernameScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      enabled={!loading}
+    >
       <View style={styles.inner}>
         <Text style={styles.title}>choose a username</Text>
         <Text style={styles.subtitle}>this is how friends will find you.</Text>
@@ -60,7 +66,7 @@ export default function SetupUsernameScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

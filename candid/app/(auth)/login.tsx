@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -28,7 +30,11 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      enabled={!loading}
+    >
       <View style={styles.header}>
         <Text style={styles.logo}>candid</Text>
         <Text style={styles.tagline}>moments, unfiltered.</Text>
@@ -75,7 +81,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </Link>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

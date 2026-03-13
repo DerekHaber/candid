@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { supabase } from '../../lib/supabase';
@@ -34,7 +36,7 @@ export default function SignupScreen() {
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo: 'candid://',
+        emailRedirectTo: 'candid://auth-callback',
       },
     });
 
@@ -59,7 +61,11 @@ export default function SignupScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      enabled={!loading}
+    >
       <View style={styles.header}>
         <Text style={styles.logo}>candid</Text>
         <Text style={styles.tagline}>join the circle.</Text>
@@ -116,7 +122,7 @@ export default function SignupScreen() {
           </Text>
         </Text>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
