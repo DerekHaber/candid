@@ -48,9 +48,7 @@ export default function RootLayout() {
   useEffect(() => {
     // Handle deep links when the app is already open (e.g. tapping link while app is backgrounded)
     const linkSub = Linking.addEventListener('url', ({ url }) => {
-      if (url.includes('code=') || url.includes('access_token=')) {
-        supabase.auth.exchangeCodeForSession(url).catch(() => {});
-      }
+      handleAuthUrl(url).catch(() => {});
     });
 
     // Listen for auth state changes (login, logout, token refresh)
@@ -65,13 +63,31 @@ export default function RootLayout() {
       }
     );
 
-    // Init: exchange code from deep link FIRST, then get session.
-    // This prevents a race where getSession() resolves before the code
+    // Handles auth redirect URLs for both PKCE (code=) and implicit (access_token=) flows.
+    // Without flowType:'pkce' set, Supabase uses implicit flow — the redirect URL contains
+    // access_token/refresh_token as query params, not a PKCE code. exchangeCodeForSession
+    // only handles PKCE codes, so we must use setSession for the implicit case.
+    async function handleAuthUrl(url: string) {
+      if (url.includes('code=')) {
+        await supabase.auth.exchangeCodeForSession(url);
+      } else if (url.includes('access_token=')) {
+        const qs = url.includes('?') ? url.split('?')[1] : url.split('#')[1] ?? '';
+        const params = new URLSearchParams(qs);
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+        if (access_token && refresh_token) {
+          await supabase.auth.setSession({ access_token, refresh_token });
+        }
+      }
+    }
+
+    // Init: process deep link auth URL FIRST, then get session.
+    // This prevents a race where getSession() resolves before the auth
     // exchange completes, causing a double-navigation crash.
     async function init() {
       const url = await Linking.getInitialURL();
       if (url && (url.includes('code=') || url.includes('access_token='))) {
-        await supabase.auth.exchangeCodeForSession(url).catch(() => {});
+        await handleAuthUrl(url).catch(() => {});
       }
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) {
