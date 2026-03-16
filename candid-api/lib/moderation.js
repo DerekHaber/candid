@@ -1,4 +1,5 @@
-const tf = require('@tensorflow/tfjs-node');
+const tfn = require('@tensorflow/tfjs-node');
+const tf = require('@tensorflow/tfjs');
 const db = require('./db');
 const r2 = require('./r2');
 
@@ -22,7 +23,7 @@ let model = null;
 async function getModel() {
   if (!model) {
     const port = process.env.PORT || 3000;
-    model = await tf.loadGraphModel(
+    model = await tf.loadLayersModel(
       `http://localhost:${port}/nsfw-model/models/inception_v3/model.json`
     );
   }
@@ -31,7 +32,7 @@ async function getModel() {
 
 async function classify(buffer) {
   const m = await getModel();
-  const image = tf.node.decodeImage(buffer, 3);
+  const image = tfn.node.decodeImage(buffer, 3);
   const input = tf.tidy(() =>
     tf.image.resizeBilinear(image, [IMAGE_SIZE, IMAGE_SIZE], true)
       .toFloat()
