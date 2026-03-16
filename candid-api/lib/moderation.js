@@ -7,9 +7,9 @@ const CATEGORIES = ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy'];
 const IMAGE_SIZE = 224;
 
 const THRESHOLDS = {
-  Porn:   0.60,
-  Hentai: 0.60,
-  Sexy:   0.85,
+  Porn:   0.40,
+  Hentai: 0.40,
+  Sexy:   0.70,
 };
 
 let model = null;
@@ -74,6 +74,11 @@ async function moderatePhoto(photo) {
       );
       console.log(`[moderation] flagged photo ${photo.id}: ${reason}`);
     } else {
+      const approvedScores = predictions
+        .sort((a, b) => b.probability - a.probability)
+        .map(p => `${p.className}: ${(p.probability * 100).toFixed(1)}%`)
+        .join(', ');
+      console.log(`[moderation] approved photo ${photo.id}: ${approvedScores}`);
       await db.query(
         'UPDATE photos SET moderation_status = $1 WHERE id = $2',
         ['approved', photo.id]
