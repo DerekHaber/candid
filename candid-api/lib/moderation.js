@@ -1,31 +1,51 @@
+const tf = require('@tensorflow/tfjs-node');
 const db = require('./db');
 const r2 = require('./r2');
 
-// Lazy-load heavy deps so they don't slow down server startup
-let tf = null;
-let nsfw = null;
-let model = null;
+// nsfwjs output categories (fixed order from the mobilenet_v2_mid model)
+const CATEGORIES = ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy'];
+const IMAGE_SIZE = 224;
 
-async function getModel() {
-  if (!tf) tf = require('@tensorflow/tfjs-node');
-  if (!nsfw) nsfw = require('nsfwjs');
-  if (!model) {
-    const port = process.env.PORT || 3000;
-    model = await nsfw.load(`http://localhost:${port}/nsfw-model/mobilenet_v2_mid/`);
-  }
-  return model;
-}
-
-// Thresholds for a 13+ app
 const THRESHOLDS = {
   Porn:   0.60,
   Hentai: 0.60,
   Sexy:   0.85,
 };
 
+let model = null;
+
+async function getModel() {
+  if (!model) {
+    const port = process.env.PORT || 3000;
+    model = await tf.loadGraphModel(
+      `http://localhost:${port}/nsfw-model/mobilenet_v2_mid/model.json`
+    );
+  }
+  return model;
+}
+
+async function classify(buffer) {
+  const m = await getModel();
+  const image = tf.node.decodeImage(buffer, 3);
+  const input = tf.tidy(() =>
+    tf.image.resizeBilinear(image, [IMAGE_SIZE, IMAGE_SIZE], true)
+      .toFloat()
+      .div(255)
+      .expandDims(0)
+  );
+  image.dispose();
+
+  const output = m.predict(input);
+  input.dispose();
+
+  const scores = await output.data();
+  output.dispose();
+
+  return CATEGORIES.map((name, i) => ({ className: name, probability: scores[i] }));
+}
+
 async function moderatePhoto(photo) {
   if (photo.media_type !== 'photo') {
-    // Videos can't be run through nsfwjs — queue for manual admin review
     await db.query(
       'UPDATE photos SET moderation_status = $1 WHERE id = $2',
       ['pending_review', photo.id]
@@ -39,11 +59,7 @@ async function moderatePhoto(photo) {
     if (!res.ok) throw new Error(`R2 fetch failed: ${res.status}`);
     const buffer = Buffer.from(await res.arrayBuffer());
 
-    const m = await getModel();
-    const image = tf.node.decodeImage(buffer, 3);
-    const predictions = await m.classify(image);
-    image.dispose();
-
+    const predictions = await classify(buffer);
     const score = name => predictions.find(p => p.className === name)?.probability ?? 0;
     const flagged = Object.entries(THRESHOLDS).some(([name, threshold]) => score(name) > threshold);
 
@@ -65,7 +81,6 @@ async function moderatePhoto(photo) {
     }
   } catch (err) {
     console.error(`[moderation] error on photo ${photo.id}:`, err.message, err.cause ?? '');
-    // Fail open — approve on error to avoid blocking legitimate content
     await db.query(
       'UPDATE photos SET moderation_status = $1 WHERE id = $2',
       ['approved', photo.id]
