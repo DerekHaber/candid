@@ -11,7 +11,7 @@ async function getModel() {
   if (!nsfw) nsfw = require('nsfwjs');
   if (!model) {
     const path = require('path');
-    const modelPath = `file://${path.join(__dirname, '../nsfw-model/')}/`;
+    const modelPath = `file://${path.join(__dirname, '../node_modules/nsfwjs/dist/models/mobilenet_v2_mid/')}/`;
     model = await nsfw.load(modelPath);
   }
   return model;
