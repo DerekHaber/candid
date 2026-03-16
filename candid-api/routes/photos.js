@@ -4,9 +4,14 @@ const db = require('../lib/db');
 const r2 = require('../lib/r2');
 const { moderatePhoto } = require('../lib/moderation');
 
+const ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/quicktime'];
+
 // POST /photos/upload-url
 router.post('/upload-url', async (req, res) => {
   const { filename, contentType = 'image/jpeg' } = req.body;
+  if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+    return res.status(400).json({ error: 'Invalid content type' });
+  }
   const storagePath = `${req.userId}/${filename}`;
   const uploadUrl = await r2.getUploadUrl(storagePath, contentType);
   res.json({ uploadUrl, storagePath });
@@ -97,7 +102,7 @@ router.delete('/:id', async (req, res) => {
     [req.params.id, req.userId]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Photo not found' });
-  await db.query('DELETE FROM photos WHERE id = $1', [req.params.id]);
+  await db.query('DELETE FROM photos WHERE id = $1 AND user_id = $2', [req.params.id, req.userId]);
   r2.deleteObject(rows[0].storage_path).catch(e => console.error('R2 delete failed:', e));
   res.json({ ok: true });
 });

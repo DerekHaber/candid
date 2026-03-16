@@ -88,7 +88,7 @@ async function moderatePhoto(photo) {
     console.error(`[moderation] error on photo ${photo.id}:`, err.message, err.cause ?? '');
     await db.query(
       'UPDATE photos SET moderation_status = $1 WHERE id = $2',
-      ['approved', photo.id]
+      ['pending_review', photo.id]
     );
   }
 }

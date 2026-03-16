@@ -46,16 +46,20 @@ router.post('/', async (req, res) => {
 // PATCH /friends/:id — accept { status: 'accepted' }
 router.patch('/:id', async (req, res) => {
   const { status } = req.body;
-  await db.query(
-    'UPDATE friends SET status = $1 WHERE id = $2',
-    [status, req.params.id]
+  const { rowCount } = await db.query(
+    'UPDATE friends SET status = $1 WHERE id = $2 AND friend_id = $3',
+    [status, req.params.id, req.userId]
   );
+  if (!rowCount) return res.status(403).json({ error: 'Not authorized' });
   res.json({ ok: true });
 });
 
 // DELETE /friends/:id
 router.delete('/:id', async (req, res) => {
-  await db.query('DELETE FROM friends WHERE id = $1', [req.params.id]);
+  await db.query(
+    'DELETE FROM friends WHERE id = $1 AND (user_id = $2 OR friend_id = $2)',
+    [req.params.id, req.userId]
+  );
   res.json({ ok: true });
 });
 
