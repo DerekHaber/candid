@@ -18,7 +18,7 @@ async function getModel() {
   if (!model) {
     const port = process.env.PORT || 3000;
     model = await tf.loadGraphModel(
-      `http://localhost:${port}/nsfw-model/mobilenet_v2_mid/model.json`
+      `http://localhost:${port}/nsfw-model/models/mobilenet_v2_mid/model.json`
     );
   }
   return model;
