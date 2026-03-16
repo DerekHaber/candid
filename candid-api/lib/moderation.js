@@ -10,7 +10,9 @@ async function getModel() {
   if (!tf) tf = require('@tensorflow/tfjs-node');
   if (!nsfw) nsfw = require('nsfwjs');
   if (!model) {
-    model = await nsfw.load('https://s3.amazonaws.com/ir_public/nsfwjs/quant_nsfw_mobilenet_v2/');
+    const path = require('path');
+    const modelPath = `file://${path.join(__dirname, '../nsfw-model/')}/`;
+    model = await nsfw.load(modelPath);
   }
   return model;
 }
