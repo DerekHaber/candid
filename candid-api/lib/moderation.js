@@ -4,13 +4,18 @@ const r2 = require('./r2');
 
 // nsfwjs output categories (fixed order from the mobilenet_v2_mid model)
 const CATEGORIES = ['Drawing', 'Hentai', 'Neutral', 'Porn', 'Sexy'];
-const IMAGE_SIZE = 224;
+const IMAGE_SIZE = 299;
 
+// Individual category thresholds — flag if any single category exceeds its limit
 const THRESHOLDS = {
-  Porn:   0.40,
-  Hentai: 0.40,
+  Porn:   0.35,
+  Hentai: 0.35,
   Sexy:   0.70,
 };
+
+// Weighted composite score — flag if the combined score exceeds this
+const COMPOSITE_WEIGHTS = { Porn: 1.0, Hentai: 1.0, Sexy: 0.5 };
+const COMPOSITE_THRESHOLD = 0.5;
 
 let model = null;
 
@@ -18,7 +23,7 @@ async function getModel() {
   if (!model) {
     const port = process.env.PORT || 3000;
     model = await tf.loadGraphModel(
-      `http://localhost:${port}/nsfw-model/models/mobilenet_v2_mid/model.json`
+      `http://localhost:${port}/nsfw-model/models/inception_v3/model.json`
     );
   }
   return model;
@@ -61,7 +66,10 @@ async function moderatePhoto(photo) {
 
     const predictions = await classify(buffer);
     const score = name => predictions.find(p => p.className === name)?.probability ?? 0;
-    const flagged = Object.entries(THRESHOLDS).some(([name, threshold]) => score(name) > threshold);
+
+    const individualFlagged = Object.entries(THRESHOLDS).some(([name, threshold]) => score(name) > threshold);
+    const composite = Object.entries(COMPOSITE_WEIGHTS).reduce((sum, [name, w]) => sum + score(name) * w, 0);
+    const flagged = individualFlagged || composite > COMPOSITE_THRESHOLD;
 
     if (flagged) {
       const reason = predictions
