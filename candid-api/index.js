@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const { auth } = require('./middleware/auth');
 const usersRouter = require('./routes/users');
@@ -17,6 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.use('/nsfw-model', express.static(path.join(__dirname, 'nsfw-model')));
 
 app.use('/users', auth, usersRouter);
 app.use('/photos', auth, photosRouter);

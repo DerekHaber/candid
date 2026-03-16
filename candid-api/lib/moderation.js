@@ -10,9 +10,8 @@ async function getModel() {
   if (!tf) tf = require('@tensorflow/tfjs-node');
   if (!nsfw) nsfw = require('nsfwjs');
   if (!model) {
-    const path = require('path');
-    const modelPath = `file://${path.join(__dirname, '../node_modules/nsfwjs/dist/models/mobilenet_v2_mid/')}/`;
-    model = await nsfw.load(modelPath);
+    const port = process.env.PORT || 3000;
+    model = await nsfw.load(`http://localhost:${port}/nsfw-model/mobilenet_v2_mid/`);
   }
   return model;
 }
@@ -65,7 +64,7 @@ async function moderatePhoto(photo) {
       );
     }
   } catch (err) {
-    console.error(`[moderation] error on photo ${photo.id}:`, err.message);
+    console.error(`[moderation] error on photo ${photo.id}:`, err.message, err.cause ?? '');
     // Fail open — approve on error to avoid blocking legitimate content
     await db.query(
       'UPDATE photos SET moderation_status = $1 WHERE id = $2',
