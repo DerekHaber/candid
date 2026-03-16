@@ -54,7 +54,7 @@ router.post('/reports/:id/delete-post', async (req, res) => {
   res.redirect('/');
 });
 
-// POST /reports/:id/ban-user — soft ban (sets banned_at), dismisses all reports on this user
+// POST /reports/:id/ban-user — ban via Supabase Auth (invalidates sessions + blocks login)
 router.post('/reports/:id/ban-user', async (req, res) => {
   const { rows } = await db.query(
     'SELECT reported_user_id FROM reports WHERE id = $1',
@@ -64,6 +64,15 @@ router.post('/reports/:id/ban-user', async (req, res) => {
   if (userId) {
     await db.query('UPDATE users SET banned_at = now() WHERE id = $1', [userId]);
     await db.query('DELETE FROM reports WHERE reported_user_id = $1', [userId]);
+    await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ban_duration: '876600h' }),
+    });
   } else {
     await db.query('DELETE FROM reports WHERE id = $1', [req.params.id]);
   }
@@ -99,6 +108,15 @@ router.post('/reports/:id/delete-user', async (req, res) => {
 // POST /users/:id/unban
 router.post('/users/:id/unban', async (req, res) => {
   await db.query('UPDATE users SET banned_at = NULL WHERE id = $1', [req.params.id]);
+  await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users/${req.params.id}`, {
+    method: 'PUT',
+    headers: {
+      apikey: process.env.SUPABASE_SERVICE_KEY,
+      Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ban_duration: 'none' }),
+  });
   res.redirect('/');
 });
 
