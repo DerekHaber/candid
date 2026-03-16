@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../lib/db');
 const r2 = require('../lib/r2');
+const { moderatePhoto } = require('../lib/moderation');
 
 // POST /photos/upload-url
 router.post('/upload-url', async (req, res) => {
@@ -22,7 +23,7 @@ router.post('/signed-urls', async (req, res) => {
 router.get('/developing', async (req, res) => {
   const { rows } = await db.query(
     `SELECT id, storage_path, develop_at, created_at, media_type
-     FROM photos WHERE user_id = $1 AND developed = false
+     FROM photos WHERE user_id = $1 AND developed = false AND moderation_status != 'flagged'
      ORDER BY develop_at ASC`,
     [req.userId]
   );
@@ -46,12 +47,14 @@ router.get('/developed', async (req, res) => {
 router.post('/', async (req, res) => {
   const { storage_path, media_type = 'photo' } = req.body;
   const { rows } = await db.query(
-    `INSERT INTO photos (user_id, storage_path, media_type)
-     VALUES ($1, $2, $3)
+    `INSERT INTO photos (user_id, storage_path, media_type, moderation_status)
+     VALUES ($1, $2, $3, 'pending')
      RETURNING id, storage_path, develop_at, created_at, media_type`,
     [req.userId, storage_path, media_type]
   );
   res.json(rows[0]);
+  // Run moderation after responding so the user sees no delay
+  moderatePhoto(rows[0]).catch(err => console.error('[moderation] unhandled:', err.message));
 });
 
 // GET /photos/:id — returns photo metadata + signed URL

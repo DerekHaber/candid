@@ -146,6 +146,59 @@
     .btn-delete-user:hover { background: #340d0d; }
     .btn-unban { background: #0a1a2a; color: #4488cc; border: 1px solid #0a2a3a; }
     .btn-unban:hover { background: #0d2134; }
+    .btn-approve { background: #0a2a0a; color: #55cc55; border: 1px solid #0a3a0a; }
+    .btn-approve:hover { background: #0d340d; }
+    .btn-delete-media { background: #2a0a0a; color: #cc4444; border: 1px solid #3a1010; }
+    .btn-delete-media:hover { background: #340d0d; }
+    .section-divider {
+      font-size: 11px;
+      color: #333;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin: 40px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .mod-card {
+      background: #111;
+      border: 1px solid #2a1a1a;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+    }
+    .mod-media {
+      flex-shrink: 0;
+      width: 120px;
+    }
+    .mod-media img, .mod-media video {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      display: block;
+    }
+    .mod-info {
+      flex: 1;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .mod-meta { font-size: 12px; color: #555; letter-spacing: 0.5px; }
+    .mod-reason {
+      font-size: 12px;
+      color: #888;
+      background: #0d0d0d;
+      border: 1px solid #1e1e1e;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-family: monospace;
+      line-height: 1.5;
+    }
+    .mod-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .confirm-overlay {
       display: none;
       position: fixed;
@@ -183,7 +236,56 @@
   </header>
 
   <main>
-    <p class="page-title">
+    <% if (flagged.length > 0 || pendingReview.length > 0) { %>
+      <% if (flagged.length > 0) { %>
+        <p class="section-divider">auto-flagged &mdash; <span style="color:#cc5555"><%= flagged.length %></span></p>
+        <% flagged.forEach(p => { %>
+          <div class="mod-card">
+            <div class="mod-media">
+              <img src="<%= p.media_url %>" alt="flagged photo" loading="lazy">
+            </div>
+            <div class="mod-info">
+              <div>
+                <div class="mod-meta">@<%= p.username || 'unknown' %> &nbsp;·&nbsp; <%= new Date(p.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %></div>
+                <% if (p.moderation_reason) { %>
+                  <div class="mod-reason" style="margin-top:8px"><%= p.moderation_reason %></div>
+                <% } %>
+              </div>
+              <div class="mod-actions">
+                <form method="POST" action="/moderation/<%= p.id %>/approve" style="display:inline">
+                  <button class="btn btn-approve" type="submit">approve</button>
+                </form>
+                <button class="btn btn-delete-media" onclick="confirmAction('delete-media-<%= p.id %>')">delete</button>
+                <form id="delete-media-<%= p.id %>-form" method="POST" action="/moderation/<%= p.id %>/delete" style="display:none"></form>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      <% } %>
+
+      <% if (pendingReview.length > 0) { %>
+        <p class="section-divider">videos pending review &mdash; <span style="color:#cc8844"><%= pendingReview.length %></span></p>
+        <% pendingReview.forEach(p => { %>
+          <div class="mod-card">
+            <div class="mod-media">
+              <video src="<%= p.media_url %>" width="120" height="120" style="object-fit:cover;display:block" muted playsinline controls></video>
+            </div>
+            <div class="mod-info">
+              <div class="mod-meta">@<%= p.username || 'unknown' %> &nbsp;·&nbsp; <%= new Date(p.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %></div>
+              <div class="mod-actions">
+                <form method="POST" action="/moderation/<%= p.id %>/approve" style="display:inline">
+                  <button class="btn btn-approve" type="submit">approve</button>
+                </form>
+                <button class="btn btn-delete-media" onclick="confirmAction('delete-media-<%= p.id %>')">delete</button>
+                <form id="delete-media-<%= p.id %>-form" method="POST" action="/moderation/<%= p.id %>/delete" style="display:none"></form>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      <% } %>
+    <% } %>
+
+    <p class="page-title" style="margin-top: <%= (flagged.length > 0 || pendingReview.length > 0) ? '40px' : '0' %>">
       reports &mdash; <span class="count"><%= reports.length %> open</span>
     </p>
 
@@ -292,6 +394,7 @@
       'delete-post': { title: 'delete post?', desc: 'The post will be permanently removed.', label: 'delete post' },
       'ban': { title: 'ban user?', desc: 'The user will be blocked from using the app. All their reports will be dismissed. You can unban later.', label: 'ban user' },
       'delete-user': { title: 'delete account?', desc: 'The user and all their data will be permanently deleted from the database and Supabase Auth. This cannot be undone.', label: 'delete account' },
+      'delete-media': { title: 'delete flagged photo?', desc: 'The photo will be permanently removed from the database. This cannot be undone.', label: 'delete' },
     };
 
     function confirmAction(key) {
@@ -301,6 +404,7 @@
       if (key.startsWith('delete-post-')) actionKey = 'delete-post';
       else if (key.startsWith('ban-')) actionKey = 'ban';
       else if (key.startsWith('delete-user-')) actionKey = 'delete-user';
+      else if (key.startsWith('delete-media-')) actionKey = 'delete-media';
 
       const info = actions[actionKey] || { title: 'confirm?', desc: '', label: 'confirm' };
       document.getElementById('confirmTitle').textContent = info.title;
